@@ -28,47 +28,7 @@ green-campus/
 └── tests/test_app.py   30 test cases (pytest)
 ```
 
-## Running it
 
-You need Python 3.10+ and MySQL 8.0 (XAMPP's MariaDB also works).
-
-0. Get the code
-
-   ```
-   git clone https://github.com/abitha7-glitch/green_campus_tracker.git
-   cd green_campus_tracker
-   ```
-
-1. Install the packages
-
-   ```
-   pip install -r requirements.txt
-   ```
-
-2. Put your MySQL username/password in `config.py` (or set `GC_DB_USER` / `GC_DB_PASSWORD`).
-
-3. Create the database. Either run `sql/01_schema.sql` and then `sql/02_seed.sql` in MySQL
-   Workbench, or:
-
-   ```
-   python init_db.py
-   ```
-
-   This **drops and recreates** `green_campus_db`, so only do it when you want a clean copy.
-
-4. Start the app and open http://127.0.0.1:5000
-
-   ```
-   python app.py
-   ```
-
-5. Run the tests (they use a separate `green_campus_test` database):
-
-   ```
-   python -m pytest -v
-   ```
-
-## Review 3 checklist
 
 | Requirement | Where |
 |---|---|
