@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Delete {{ ent.singular }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="crumb"><a href="{{ url_for('entity_list', slug=slug) }}">{{ ent.title }}</a></p>
+    <h1>Delete {{ ent.singular }} <span class="id">#{{ row_id }}</span>?</h1>
+  </div>
+</header>
+
+<div class="panel confirm {{ impact.kind }}">
+  <p class="what"><strong>{{ row[ent.name_col] }}</strong></p>
+
+  {% if impact.kind == 'restrict' and impact.lines %}
+    <p>{{ impact.lines[0] }} The foreign key on <code>meters.factor_id</code> is <code>ON DELETE RESTRICT</code>, so MySQL will refuse this. Move those meters to another factor first.</p>
+    <p class="muted small">You can still press delete to see the database refuse it.</p>
+  {% elif impact.kind == 'cascade' and impact.lines %}
+    <p>This also deletes, through <code>ON DELETE CASCADE</code>:</p>
+    <ul>{% for l in impact.lines %}<li>{{ l }}</li>{% endfor %}</ul>
+  {% elif impact.kind == 'setnull' and impact.lines %}
+    <p>{{ impact.lines[0] }}</p>
+  {% else %}
+    <p>Nothing else depends on it.</p>
+  {% endif %}
+  <p class="muted small">This can't be undone.</p>
+
+  <form method="post" class="form-actions">
+    <button class="btn danger" type="submit">Delete {{ ent.singular }}</button>
+    <a href="{{ url_for('entity_list', slug=slug) }}" class="cancel">Keep it</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{# one table cell, picked by the column's format. used by list.html #}
+{%- macro cell(row, key, fmt, slug) -%}
+{%- set v = row[key] -%}
+{%- if fmt == 'mono' -%}<td class="id">{{ v }}</td>
+{%- elif fmt == 'strong' -%}<td class="strong">{{ v }}</td>
+{%- elif fmt == 'muted' -%}<td class="muted">{{ v if v is not none else '—' }}</td>
+{%- elif fmt == 'int' -%}<td class="r">{{ v | num }}</td>
+{%- elif fmt == 'money' -%}<td class="r">{{ v | num(2) }}</td>
+{%- elif fmt == 'kg' -%}<td class="r strong">{{ v | num(1) if v is not none else '—' }}</td>
+{%- elif fmt == 'dec4' -%}<td class="r">{{ v if v is not none else '—' }}</td>
+{%- elif fmt == 'unit' -%}<td class="r">{{ v | num(v % 1 and 2 or 0) }} <span class="unit">{{ row.unit }}</span></td>
+{%- elif fmt == 'date' -%}<td>{{ v | d if v else '—' }}</td>
+{%- elif fmt == 'code' -%}<td><span class="code">{{ v }}</span></td>
+{%- elif fmt == 'scope' -%}<td><span class="scope s{{ v[-1] }}">{{ v }}</span></td>
+{%- elif fmt == 'status' -%}<td><span class="pill {{ v | lower | replace(' ', '-') }}">{{ v }}</span></td>
+{%- elif fmt == 'link' -%}<td class="strong"><a href="{{ url_for('building_detail', building_id=row.building_id) }}">{{ v }}</a></td>
+{%- else -%}<td>{{ v }}</td>
+{%- endif -%}
+{%- endmacro %}

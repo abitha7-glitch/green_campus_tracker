@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New ' ~ ent.singular if mode == 'new' else 'Edit ' ~ ent.singular }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <p class="crumb"><a href="{{ url_for('entity_list', slug=slug) }}">{{ ent.title }}</a></p>
+    {% if mode == 'new' %}
+      <h1>{{ 'Log a reading' if slug == 'readings' else 'New ' ~ ent.singular }}</h1>
+    {% else %}
+      <h1>Edit {{ ent.singular }} <span class="id">#{{ row_id }}</span></h1>
+    {% endif %}
+  </div>
+</header>
+
+<div class="form-layout">
+<form method="post" class="panel form" novalidate data-validate>
+  {% if errors %}
+    <p class="form-error" role="alert">Fix the {{ 'field' if errors|length == 1 else errors|length ~ ' fields' }} marked below and save again.</p>
+  {% endif %}
+
+  {% if preview_id %}
+    <p class="muted small">This will be saved as #{{ preview_id }}.</p>
+  {% endif %}
+
+  {% for f in ent.fields %}
+    {% set v = values.get(f.name, '') %}
+    {% set err = errors.get(f.name) %}
+    <div class="field {{ 'has-error' if err }}">
+      <label for="{{ f.name }}">{{ f.label }}</label>
+      {% if f.type == 'select' %}
+        <select id="{{ f.name }}" name="{{ f.name }}" {{ 'required' if not f.allow_blank }}>
+          {% if f.allow_blank %}<option value="">{{ f.allow_blank }}</option>
+          {% elif mode == 'new' and not v %}<option value="" disabled selected>Choose…</option>{% endif %}
+          {% for opt_val, opt_label in f.options() %}
+            <option value="{{ opt_val }}" {{ 'selected' if v|string == opt_val|string }}>{{ opt_label }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input id="{{ f.name }}" name="{{ f.name }}" type="{{ f.type }}" value="{{ v }}"
+          {% if f.required %}required{% endif %}
+          {% if f.max %}maxlength="{{ f.max }}"{% endif %}
+          {% if f.min is defined %}min="{{ f.min }}"{% endif %}
+          {% if f.max_num %}max="{{ f.max_num }}"{% endif %}
+          {% if f.step %}step="{{ f.step }}"{% endif %}
+          {% if f.pattern %}pattern="{{ f.pattern }}"{% endif %}
+          {% if f.type == 'date' %}max="{{ today.isoformat() }}"{% endif %}
+          {% if f.type == 'number' %}inputmode="decimal"{% endif %}>
+      {% endif %}
+      {% if err %}<p class="err">{{ err }}</p>
+      {% elif f.hint %}<p class="hint">{{ f.hint }}</p>{% endif %}
+    </div>
+  {% endfor %}
+
+  <div class="form-actions">
+    <button class="btn" type="submit">{{ 'Save reading' if slug == 'readings' and mode == 'new' else ('Add ' ~ ent.singular if mode == 'new' else 'Save changes') }}</button>
+    {% if mode == 'new' %}
+      <button class="btn ghost" type="submit" name="again" value="1">Save and add another</button>
+    {% endif %}
+    <a href="{{ url_for('entity_list', slug=slug) }}" class="cancel">Cancel</a>
+  </div>
+</form>
+
+{% if slug == 'readings' %}
+<aside class="side-note">
+  <h2>What happens when you save</h2>
+  <p>The reading goes into <code>energy_readings</code>. The trigger <code>trg_after_energy_reading_insert</code> then looks up the meter's emission factor and writes
+    <code>consumption × factor</code> into <code>carbon_logs</code>. You never fill in CO₂e yourself.</p>
+  <p>The app also stops a few things the table constraints can't: a date in the future, a second reading for the same meter on the same day, and readings on a meter marked Inactive.</p>
+  <div class="calc" data-calc hidden>
+    <span>Estimated CO₂e</span>
+    <strong data-calc-out>—</strong>
+  </div>
+</aside>
+{% elif slug == 'factors' and mode == 'edit' %}
+<aside class="side-note">
+  <h2>Changing a factor</h2>
+  <p>Carbon logs that are already written keep the old value. Only readings logged after the change use the new factor, so the history stays as it was audited.</p>
+</aside>
+{% endif %}
+</div>
+
+{% if slug == 'readings' %}
+<script>
+  // factor + unit for each meter, so the side box can show a live estimate
+  window.METER_FACTORS = {{ meter_factors | default({}) | tojson }};
+</script>
+{% endif %}
+{% endblock %}

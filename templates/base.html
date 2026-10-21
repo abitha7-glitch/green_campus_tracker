@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Green Campus{% endblock %} | Energy Audit Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='img/leaf.svg') }}">
+</head>
+<body>
+{% set ep = request.endpoint %}
+{% set slug = request.view_args.slug if request.view_args else None %}
+<div class="shell">
+  <aside class="side" id="side">
+    <a class="brand" href="{{ url_for('dashboard') }}">
+      <img src="{{ url_for('static', filename='img/leaf.svg') }}" alt="" width="30" height="30">
+      <span>Green Campus<small>Energy audit tracker</small></span>
+    </a>
+    <button class="menu-btn" type="button" aria-controls="nav" aria-expanded="false" data-menu>Menu</button>
+
+    <nav id="nav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'on' if ep == 'dashboard' }}">Overview</a>
+      <a href="{{ url_for('entity_new', slug='readings') }}" class="log-btn">Log a reading</a>
+
+      <p class="nav-group">Records</p>
+      <a href="{{ url_for('entity_list', slug='readings') }}" class="{{ 'on' if slug == 'readings' }}">
+        Readings {% if nav_counts %}<em>{{ nav_counts.readings }}</em>{% endif %}</a>
+      <a href="{{ url_for('entity_list', slug='buildings') }}" class="{{ 'on' if slug == 'buildings' or ep == 'building_detail' }}">Buildings</a>
+      <a href="{{ url_for('entity_list', slug='meters') }}" class="{{ 'on' if slug == 'meters' }}">
+        Meters {% if nav_counts and nav_counts.meters_off %}<em class="warn" title="Not active">{{ nav_counts.meters_off }} off</em>{% endif %}</a>
+      <a href="{{ url_for('entity_list', slug='initiatives') }}" class="{{ 'on' if slug == 'initiatives' }}">Initiatives</a>
+      <a href="{{ url_for('carbon_logs') }}" class="{{ 'on' if ep == 'carbon_logs' }}">Carbon log</a>
+
+      <p class="nav-group">Look things up</p>
+      <a href="{{ url_for('search') }}" class="{{ 'on' if ep == 'search' }}">Search</a>
+      <a href="{{ url_for('report') }}" class="{{ 'on' if ep in ('report',) }}">Audit report</a>
+      <a href="{{ url_for('queries') }}" class="{{ 'on' if ep == 'queries' }}">SQL queries</a>
+
+      <p class="nav-group">Setup</p>
+      <a href="{{ url_for('entity_list', slug='departments') }}" class="{{ 'on' if slug == 'departments' }}">Departments</a>
+      <a href="{{ url_for('entity_list', slug='factors') }}" class="{{ 'on' if slug == 'factors' }}">Emission factors</a>
+    </nav>
+
+    <p class="side-foot">DBMS project, Review 3<br>MySQL 8.0 + Flask</p>
+  </aside>
+
+  <main class="main">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+      <div class="flashes">
+        {% for cat, m in msgs %}<p class="flash {{ cat }}" role="status">{{ m }}<button type="button" aria-label="Dismiss" data-dismiss>×</button></p>{% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

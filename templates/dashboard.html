@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+{% set digits, tenth = totals.co2e | odometer %}
+
+<header class="hero">
+  <div class="counter-wrap">
+    <h1>Campus carbon so far</h1>
+    <div class="counter" aria-label="{{ totals.co2e | num(1) }} kilograms CO2 equivalent">
+      {% for d in digits %}<span>{{ d }}</span>{% endfor %}<span class="tenth">{{ tenth }}</span>
+      <b>kg CO₂e</b>
+    </div>
+    <p class="muted">
+      {% if totals.first_day %}
+        From {{ totals.readings }} readings between {{ totals.first_day | d }} and {{ totals.last_day | d }}.
+      {% else %}No readings yet.{% endif %}
+    </p>
+  </div>
+
+  <dl class="hero-stats">
+    <div>
+      <dt>Meters active</dt>
+      <dd>{{ meter_counts.get('Active', 0) }}<small> of {{ meter_counts.values() | sum }}</small></dd>
+      {% if meter_counts.get('Inactive') or meter_counts.get('Maintenance') %}
+      <p><a href="{{ url_for('search', status='Inactive') }}">{{ meter_counts.get('Inactive', 0) }} inactive</a>{% if meter_counts.get('Maintenance') %}, {{ meter_counts.get('Maintenance') }} in maintenance{% endif %}</p>
+      {% endif %}
+    </div>
+    <div>
+      <dt>Energy cost</dt>
+      <dd>{{ totals.cost | num }}</dd>
+      <p>across all sources</p>
+    </div>
+    <div>
+      <dt>Reduction targets</dt>
+      <dd>{{ init.target | num }}<small> kg</small></dd>
+      <p>{{ init.running or 0 }} of {{ init.n }} initiatives in progress</p>
+    </div>
+  </dl>
+</header>
+
+<div class="dash-grid">
+  <div class="dash-col">
+  <section class="panel label-panel">
+    <div class="panel-head">
+      <h2>Building rating</h2>
+      <p class="muted">Banded by kg CO₂e per square foot, so a big hostel and a small office can be compared fairly.</p>
+    </div>
+
+    <ol class="energy-label">
+      {% for b in buildings | sort(attribute='co2e_per_sqft') %}
+      {% set band = b.co2e_per_sqft | band %}
+      <li>
+        <a href="{{ url_for('building_detail', building_id=b.building_id) }}" class="row">
+          <span class="arrow band-{{ band }}">{{ band }}</span>
+          <span class="bname">{{ b.building_name }}</span>
+          <span class="bval"><strong>{{ b.co2e_per_sqft }}</strong> kg/sq ft</span>
+          <span class="btotal">{{ b.total_co2e_kg | num }} kg</span>
+        </a>
+      </li>
+      {% else %}
+      <li class="empty">No readings yet, so there's nothing to rate. <a href="{{ url_for('entity_new', slug='readings') }}">Log the first reading</a>.</li>
+      {% endfor %}
+    </ol>
+    <p class="band-key">
+      {% for limit, letter in bands %}<span class="band-{{ letter }}">{{ letter }}</span>{% endfor %}<span class="band-G">G</span>
+      <small>A is under {{ bands[0][0] }} kg/sq ft, each band adds 0.025, G is {{ bands[-1][0] }} and over</small>
+    </p>
+
+    <h3 class="sub">Per reading day</h3>
+    <div class="days">
+      {% for d in daily %}
+      <div class="day" title="{{ d.n }} readings">
+        <span class="val">{{ (d.co2e / 1000) | num(1) }}t</span>
+        <span class="col" style="height: {{ '%.1f' % (d.co2e / daily_max * 100) }}%"></span>
+        <span class="lbl">{{ d.day.strftime('%d %b') }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+  </section>
+
+  <section class="panel">
+    <div class="panel-head row-head">
+      <h2>Latest readings</h2>
+      <a class="btn small ghost" href="{{ url_for('entity_list', slug='readings') }}">All readings</a>
+    </div>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Date</th><th>Meter</th><th class="r">Consumption</th><th class="r">CO₂e (kg)</th></tr></thead>
+      <tbody>
+      {% for r in recent %}
+        <tr>
+          <td class="id">{{ r.reading_id }}</td>
+          <td>{{ r.reading_date | d }}</td>
+          <td><span class="code" title="{{ r.building_name }}">{{ r.meter_code }}</span></td>
+          <td class="r">{{ r.consumption_value | num }} <span class="unit">{{ r.unit }}</span></td>
+          <td class="r strong">{{ r.calculated_co2e_kg | num(1) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  </div>
+  <div class="dash-col">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Where it comes from</h2>
+      <p class="muted">GHG Protocol scopes, from <code>vw_scope_wise_emissions</code>.</p>
+    </div>
+    <div class="scope-bar" role="img" aria-label="Emissions split by scope">
+      {% for s in ['Scope 1', 'Scope 2', 'Scope 3'] if scopes.get(s) %}
+        {% set pct = (scopes[s].total_co2e_kg / scope_total * 100) %}
+        <span class="s{{ s[-1] }}" style="width: {{ '%.2f' % pct }}%"></span>
+      {% endfor %}
+    </div>
+    <ul class="scope-list">
+      {% for s, desc in [('Scope 1', 'Fuel burnt on campus: diesel generators, LPG'),
+                         ('Scope 2', 'Electricity bought from the grid, plus solar'),
+                         ('Scope 3', 'Indirect: purchased steam, refrigerant')] %}
+      {% set r = scopes.get(s) %}
+      <li>
+        <i class="dot s{{ s[-1] }}"></i>
+        <div><strong>{{ s }}</strong><span>{{ desc }}</span></div>
+        <b>{{ (r.total_co2e_kg / scope_total * 100) | num(1) if r else '0' }}%</b>
+        <small>{{ r.total_co2e_kg | num(1) if r else 0 }} kg</small>
+      </li>
+      {% endfor %}
+    </ul>
+
+  </section>
+
+  <section class="panel">
+    <div class="panel-head row-head">
+      <h2>Initiatives</h2>
+      <a class="btn small ghost" href="{{ url_for('entity_new', slug='initiatives') }}">Add</a>
+    </div>
+    <ul class="init-list">
+      {% for i in initiatives %}
+      <li>
+        <span class="pill {{ i.status | lower | replace(' ', '-') }}">{{ i.status }}</span>
+        <div>
+          <a href="{{ url_for('entity_edit', slug='initiatives', row_id=i.initiative_id) }}">{{ i.title }}</a>
+          <small>{{ i.building_name }}, aims to cut {{ i.target_co2_reduction_kg | num }} kg</small>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  </div>
+</div>
+{% endblock %}

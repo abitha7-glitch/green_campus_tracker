@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Audit report{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Audit report</h1>
+    <p class="muted">Pick a period. The numbers come from <code>CALL sp_GetCampusAuditReport(from, to)</code>, grouped by building and energy source.</p>
+  </div>
+  {% if rows %}
+  <div class="head-actions">
+    <a class="btn ghost" href="{{ url_for('report_csv', **{'from': d_from.isoformat(), 'to': d_to.isoformat()}) }}">Download CSV</a>
+    <button class="btn ghost" type="button" onclick="window.print()">Print</button>
+  </div>
+  {% endif %}
+</header>
+
+<form class="panel range-form" method="get" data-validate novalidate>
+  <div class="field">
+    <label for="from">From</label>
+    <input id="from" name="from" type="date" value="{{ d_from.isoformat() if d_from }}" required>
+  </div>
+  <div class="field">
+    <label for="to">To</label>
+    <input id="to" name="to" type="date" value="{{ d_to.isoformat() if d_to }}" required data-after="#from">
+  </div>
+  <button class="btn" type="submit">Run report</button>
+</form>
+
+{% if error %}
+  <p class="flash error">{{ error }}</p>
+{% elif not rows %}
+  <div class="panel empty-state"><p>No readings fall between {{ d_from | d }} and {{ d_to | d }}.</p></div>
+{% else %}
+<section class="panel report-sheet">
+  <div class="sheet-head">
+    <div>
+      <h2>Green Campus energy audit</h2>
+      <p class="muted">{{ d_from | d }} to {{ d_to | d }}</p>
+    </div>
+    <dl class="sheet-totals">
+      <div><dt>CO₂e</dt><dd>{{ totals.co2e | num(1) }} kg</dd></div>
+      <div><dt>Cost</dt><dd>{{ totals.cost | num(2) }}</dd></div>
+      <div><dt>Readings</dt><dd>{{ totals.readings }}</dd></div>
+    </dl>
+  </div>
+
+  <div class="scope-bar thin" role="img" aria-label="Split by scope">
+    {% for s in ['Scope 1', 'Scope 2', 'Scope 3'] if by_scope.get(s) %}
+      <span class="s{{ s[-1] }}" style="width: {{ '%.2f' % (by_scope[s] / totals.co2e * 100) }}%" title="{{ s }}: {{ by_scope[s] | num(1) }} kg"></span>
+    {% endfor %}
+  </div>
+  <p class="scope-inline">
+    {% for s in ['Scope 1', 'Scope 2', 'Scope 3'] %}
+      <span><i class="dot s{{ s[-1] }}"></i>{{ s }} {{ (by_scope.get(s, 0) / totals.co2e * 100) | num(1) }}%</span>
+    {% endfor %}
+  </p>
+
+  <div class="table-wrap">
+  <table class="sortable">
+    <thead>
+      <tr><th data-sort>Building</th><th data-sort>Source</th><th data-sort>Scope</th><th class="r" data-sort>Readings</th>
+        <th class="r" data-sort>Consumption</th><th class="r" data-sort>CO₂e (kg)</th><th class="r" data-sort>Share</th><th class="r" data-sort>Cost</th></tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="strong">{{ r.building_name }}</td>
+        <td>{{ r.source_type }}</td>
+        <td><span class="scope s{{ r.scope_level[-1] }}">{{ r.scope_level }}</span></td>
+        <td class="r">{{ r.readings }}</td>
+        <td class="r">{{ r.period_consumption | num }} <span class="unit">{{ r.unit }}</span></td>
+        <td class="r strong">{{ r.period_co2e_kg | num(2) }}</td>
+        <td class="r">{{ (r.period_co2e_kg / totals.co2e * 100) | num(1) }}%</td>
+        <td class="r">{{ r.period_cost | num(2) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="3">Campus total</td><td class="r">{{ totals.readings }}</td><td></td>
+        <td class="r strong">{{ totals.co2e | num(2) }}</td><td class="r">100%</td><td class="r">{{ totals.cost | num(2) }}</td></tr>
+    </tfoot>
+  </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

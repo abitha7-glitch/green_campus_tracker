@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Search</h1>
+    <p class="muted">Look across buildings, meters, readings and initiatives. Date and consumption limits only apply to readings.</p>
+  </div>
+</header>
+
+<form class="panel search-form" method="get" data-validate novalidate>
+  <div class="search-main">
+    <label for="q" class="sr">Search text</label>
+    <input id="q" name="q" type="search" value="{{ f.q }}" placeholder="Meter code, building, source or reading number" autofocus>
+    <button class="btn" type="submit">Search</button>
+  </div>
+  <div class="filters">
+    <div class="field">
+      <label for="building">Building</label>
+      <select id="building" name="building">
+        <option value="">Any</option>
+        {% for id, name in buildings %}<option value="{{ id }}" {{ 'selected' if f.building == id|string }}>{{ name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="source">Energy source</label>
+      <select id="source" name="source">
+        <option value="">Any</option>
+        {% for s in sources %}<option value="{{ s.factor_id }}" {{ 'selected' if f.source == s.factor_id|string }}>{{ s.source_type }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="scope">Scope</label>
+      <select id="scope" name="scope">
+        <option value="">Any</option>
+        {% for s in scopes %}<option {{ 'selected' if f.scope == s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        <option value="">Any</option>
+        <optgroup label="Meters">{% for s in statuses[:3] %}<option {{ 'selected' if f.status == s }}>{{ s }}</option>{% endfor %}</optgroup>
+        <optgroup label="Initiatives">{% for s in statuses[3:] %}<option {{ 'selected' if f.status == s }}>{{ s }}</option>{% endfor %}</optgroup>
+      </select>
+    </div>
+    <div class="field">
+      <label for="date_from">Read from</label>
+      <input id="date_from" name="date_from" type="date" value="{{ f.date_from }}" max="{{ today.isoformat() }}">
+    </div>
+    <div class="field">
+      <label for="date_to">Read until</label>
+      <input id="date_to" name="date_to" type="date" value="{{ f.date_to }}" max="{{ today.isoformat() }}" data-after="#date_from">
+    </div>
+    <div class="field">
+      <label for="min_value">Consumption at least</label>
+      <input id="min_value" name="min_value" type="number" min="0" step="any" value="{{ f.min_value }}">
+    </div>
+    <div class="field">
+      <label for="max_value">Consumption at most</label>
+      <input id="max_value" name="max_value" type="number" min="0" step="any" value="{{ f.max_value }}">
+    </div>
+  </div>
+  {% if searched %}<a class="clear" href="{{ url_for('search') }}">Clear everything</a>{% endif %}
+</form>
+
+{% for e in errors %}<p class="flash error">{{ e }}</p>{% endfor %}
+
+{% if searched and not errors %}
+  <p class="result-count"><strong>{{ total }}</strong> {{ 'match' if total == 1 else 'matches' }}{% if f.q %} for “{{ f.q }}”{% endif %}</p>
+
+  {% if total == 0 %}
+    <div class="panel empty-state">
+      <p>Nothing matched. Try fewer filters, or part of a code like <a href="{{ url_for('search', q='ELEC') }}">ELEC</a> or <a href="{{ url_for('search', q='Hostel') }}">Hostel</a>.</p>
+    </div>
+  {% endif %}
+
+  {% if results.buildings %}
+  <section class="panel result-group">
+    <h2>Buildings <small>{{ results.buildings | length }}</small></h2>
+    <ul class="plain-list">
+      {% for b in results.buildings %}
+      <li><a href="{{ url_for('building_detail', building_id=b.building_id) }}">{{ b.building_name }}</a>
+        <span class="muted">{{ b.dept_name or 'No department' }}, {{ b.floors }} floors, {{ b.total_area_sqft | num }} sq ft</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if results.meters %}
+  <section class="panel result-group">
+    <h2>Meters <small>{{ results.meters | length }}</small></h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Code</th><th>Building</th><th>Source</th><th>Scope</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for m in results.meters %}
+        <tr>
+          <td><span class="code">{{ m.meter_code }}</span></td>
+          <td>{{ m.building_name }}</td>
+          <td>{{ m.source_type }}</td>
+          <td><span class="scope s{{ m.scope_level[-1] }}">{{ m.scope_level }}</span></td>
+          <td><span class="pill {{ m.status | lower }}">{{ m.status }}</span></td>
+          <td class="actions"><a href="{{ url_for('entity_edit', slug='meters', row_id=m.meter_id) }}">Edit</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if results.readings %}
+  <section class="panel result-group">
+    <h2>Readings <small>{{ results.readings | length }}</small></h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Date</th><th>Meter</th><th>Building</th><th class="r">Consumption</th><th class="r">Cost</th><th class="r">CO₂e (kg)</th></tr></thead>
+      <tbody>
+      {% for r in results.readings %}
+        <tr>
+          <td class="id"><a href="{{ url_for('entity_edit', slug='readings', row_id=r.reading_id) }}">{{ r.reading_id }}</a></td>
+          <td>{{ r.reading_date | d }}</td>
+          <td><span class="code">{{ r.meter_code }}</span></td>
+          <td>{{ r.building_name }}</td>
+          <td class="r">{{ r.consumption_value | num }} <span class="unit">{{ r.unit }}</span></td>
+          <td class="r">{{ r.cost_incurred | num(2) }}</td>
+          <td class="r strong">{{ r.calculated_co2e_kg | num(1) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4">Total for these {{ results.readings | length }} readings</td>
+          <td class="r">{% if reading_sum.units | length == 1 %}{{ reading_sum.consumption | num }} <span class="unit">{{ reading_sum.units | first }}</span>{% else %}<span class="muted" title="Different units can't be added">mixed units</span>{% endif %}</td>
+          <td class="r">{{ reading_sum.cost | num(2) }}</td>
+          <td class="r strong">{{ reading_sum.co2e | num(1) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if results.initiatives %}
+  <section class="panel result-group">
+    <h2>Initiatives <small>{{ results.initiatives | length }}</small></h2>
+    <ul class="init-list">
+      {% for i in results.initiatives %}
+      <li>
+        <span class="pill {{ i.status | lower | replace(' ', '-') }}">{{ i.status }}</span>
+        <div><a href="{{ url_for('entity_edit', slug='initiatives', row_id=i.initiative_id) }}">{{ i.title }}</a>
+          <small>{{ i.building_name }}, target {{ i.target_co2_reduction_kg | num }} kg</small></div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+{% elif not searched %}
+  <div class="suggest">
+    <p class="muted">A few to try:</p>
+    <a href="{{ url_for('search', scope='Scope 1') }}">Everything on Scope 1</a>
+    <a href="{{ url_for('search', min_value='5000') }}">Readings of 5,000 or more</a>
+    <a href="{{ url_for('search', date_from='2026-09-02', date_to='2026-09-02') }}">Readings on 2 Sep 2026</a>
+    <a href="{{ url_for('search', status='In Progress') }}">Initiatives in progress</a>
+    <a href="{{ url_for('search', q='DG') }}">Diesel generator meters</a>
+  </div>
+{% endif %}
+{% endblock %}

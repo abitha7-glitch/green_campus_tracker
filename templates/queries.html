@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}SQL queries{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>SQL queries</h1>
+    <p class="muted">Every query from Review 2, run live against the database right now. They're read from
+      <code>sql/03_queries.sql</code>, so the file and this page always agree.</p>
+  </div>
+</header>
+
+<div class="query-layout">
+  <nav class="query-index" aria-label="Queries">
+    {% for q in items %}
+      <a href="#{{ q.id }}"><span>{{ q.section }}</span>{{ q.clause }}</a>
+    {% endfor %}
+    <a href="#console" class="console-link">Try your own</a>
+  </nav>
+
+  <div class="query-list">
+    {% for q in items %}
+    <article class="panel query" id="{{ q.id }}">
+      <header>
+        <span class="qnum">{{ q.section }}</span>
+        <div>
+          <h2>{{ q.title }}</h2>
+          <p class="clause">{{ q.clause }}</p>
+        </div>
+      </header>
+      {% if q.note %}<p class="muted">{{ q.note }}</p>{% endif %}
+      <details class="sql-block">
+        <summary>Show SQL</summary>
+        <pre><code>{{ q.sql }}</code></pre>
+        <button type="button" class="btn small ghost" data-copy>Copy</button>
+      </details>
+      {% if q.error %}
+        <p class="flash error">{{ q.error }}</p>
+      {% else %}
+        <div class="table-wrap result">
+        <table>
+          <thead><tr>{% for c in q.cols %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for r in q.rows %}<tr>{% for v in r %}<td>{{ v | smartnum }}</td>{% endfor %}</tr>
+            {% else %}<tr><td colspan="{{ q.cols | length }}" class="muted">Empty set</td></tr>{% endfor %}
+          </tbody>
+        </table>
+        </div>
+        <p class="rows-note">{{ q.rows | length }} row{{ '' if q.rows | length == 1 else 's' }}</p>
+      {% endif %}
+    </article>
+    {% endfor %}
+
+    <article class="panel query console" id="console">
+      <header>
+        <span class="qnum">SQL</span>
+        <div>
+          <h2>Try your own query</h2>
+          <p class="clause">Read only</p>
+        </div>
+      </header>
+      <p class="muted">For the viva, when someone asks “what if you…”. Only <code>SELECT</code>, <code>SHOW</code> and <code>DESCRIBE</code> run, inside a read-only transaction, so nothing can be changed from here.</p>
+      <form method="post" action="{{ url_for('queries') }}#console">
+        <label for="sql" class="sr">SQL</label>
+        <textarea id="sql" name="sql" rows="6" spellcheck="false" placeholder="SELECT * FROM meters WHERE status = 'Inactive';">{{ console.sql }}</textarea>
+        <div class="form-actions">
+          <button class="btn" type="submit">Run query</button>
+          <span class="muted small">Ctrl + Enter also runs it</span>
+        </div>
+      </form>
+      {% if console.error %}<p class="flash error">{{ console.error }}</p>{% endif %}
+      {% if console.cols is not none %}
+        <div class="table-wrap result">
+        <table>
+          <thead><tr>{% for c in console.cols %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for r in console.rows %}<tr>{% for v in r %}<td>{{ v | smartnum }}</td>{% endfor %}</tr>
+            {% else %}<tr><td colspan="{{ console.cols | length or 1 }}" class="muted">Empty set</td></tr>{% endfor %}
+          </tbody>
+        </table>
+        </div>
+        <p class="rows-note">{{ console.rows | length }} row{{ '' if console.rows | length == 1 else 's' }}{% if console.rows | length == 500 %} (first 500 only){% endif %}</p>
+      {% endif %}
+    </article>
+  </div>
+</div>
+{% endblock %}

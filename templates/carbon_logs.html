@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Carbon log{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>Carbon log</h1>
+    <p class="muted">Written only by the triggers on <code>energy_readings</code>, so there's no add or edit here.
+      The last column recalculates each value from the current factor as a check.</p>
+  </div>
+</header>
+
+<div class="table-wrap panel flush">
+<table class="sortable">
+  <thead>
+    <tr>
+      <th data-sort>Log</th><th data-sort>Reading</th><th data-sort>Date</th><th data-sort>Meter</th>
+      <th class="r" data-sort>Consumption</th><th class="r" data-sort>Factor</th>
+      <th class="r" data-sort>Logged CO₂e (kg)</th><th data-sort>Logged at</th><th>Check</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="id">{{ r.log_id }}</td>
+      <td class="id"><a href="{{ url_for('entity_edit', slug='readings', row_id=r.reading_id) }}">{{ r.reading_id }}</a></td>
+      <td>{{ r.reading_date | d }}</td>
+      <td><span class="code">{{ r.meter_code }}</span></td>
+      <td class="r">{{ r.consumption_value | num }} <span class="unit">{{ r.unit }}</span></td>
+      <td class="r">× {{ r.co2e_per_unit.normalize() }}</td>
+      <td class="r strong">{{ r.calculated_co2e_kg | num(3) }}</td>
+      <td class="muted">{{ r.logged_at.strftime('%d %b %Y, %H:%M') }}</td>
+      <td>
+        {% if r.recomputed == r.calculated_co2e_kg %}<span class="pill completed">matches</span>
+        {% else %}<span class="pill inactive" title="The factor changed after this was logged. Recomputed: {{ r.recomputed }}">old factor</span>{% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="muted">No logs yet. They appear as soon as a reading is saved.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

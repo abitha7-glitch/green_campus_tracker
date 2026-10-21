@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ b.building_name }}{% endblock %}
+{% block content %}
+{% set band = summary.co2e_per_sqft | band if summary else None %}
+<header class="page-head">
+  <div>
+    <p class="crumb"><a href="{{ url_for('entity_list', slug='buildings') }}">Buildings</a></p>
+    <h1>{{ b.building_name }}</h1>
+    <p class="muted">
+      {{ b.dept_name or 'No department' }}{% if b.head_of_dept %} (head: {{ b.head_of_dept }}){% endif %}.
+      {{ b.floors }} floors, {{ b.total_area_sqft | num }} sq ft.
+    </p>
+  </div>
+  <div class="head-actions">
+    <a class="btn ghost" href="{{ url_for('entity_edit', slug='buildings', row_id=b.building_id) }}">Edit building</a>
+    <a class="btn" href="{{ url_for('entity_new', slug='meters', building_id=b.building_id) }}">Add meter</a>
+  </div>
+</header>
+
+<section class="panel building-summary">
+  {% if summary %}
+  <div class="big-band band-{{ band }}"><span>{{ band }}</span></div>
+  <dl>
+    <div><dt>Total CO₂e</dt><dd>{{ summary.total_co2e_kg | num(1) }} <small>kg</small></dd></div>
+    <div><dt>Per square foot</dt><dd>{{ summary.co2e_per_sqft }} <small>kg</small></dd></div>
+    <div><dt>Ranking</dt><dd>{{ rank }}<small> of {{ n_buildings }}</small></dd><p class="muted small">1 = most carbon per sq ft</p></div>
+  </dl>
+  {% else %}
+  <p class="muted">No readings for this building yet, so it has no rating.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Meters</h2></div>
+  {% if meters %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Code</th><th>Source</th><th>Scope</th><th>Status</th><th class="r">Readings</th><th class="r">Consumption</th><th class="r">CO₂e (kg)</th><th class="actions"></th></tr></thead>
+    <tbody>
+    {% for m in meters %}
+      <tr>
+        <td><span class="code">{{ m.meter_code }}</span></td>
+        <td>{{ m.source_type }} <span class="muted small">({{ m.co2e_per_unit.normalize() }}/{{ m.unit }})</span></td>
+        <td><span class="scope s{{ m.scope_level[-1] }}">{{ m.scope_level }}</span></td>
+        <td><span class="pill {{ m.status | lower }}">{{ m.status }}</span></td>
+        <td class="r">{{ m.readings }}</td>
+        <td class="r">{{ m.consumption | num }} <span class="unit">{{ m.unit }}</span></td>
+        <td class="r strong">{{ m.co2e | num(1) }}</td>
+        <td class="actions">
+          {% if m.status != 'Inactive' %}<a href="{{ url_for('entity_new', slug='readings', meter_id=m.meter_id) }}">Log reading</a>{% endif %}
+          <a href="{{ url_for('entity_edit', slug='meters', row_id=m.meter_id) }}">Edit</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    <p class="muted">No meters installed here yet.</p>
+  {% endif %}
+</section>
+
+<div class="two-col">
+  <section class="panel">
+    <div class="panel-head"><h2>Readings</h2></div>
+    {% if readings %}
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Date</th><th>Meter</th><th class="r">Value</th><th class="r">CO₂e (kg)</th></tr></thead>
+      <tbody>
+      {% for r in readings %}
+        <tr>
+          <td class="id"><a href="{{ url_for('entity_edit', slug='readings', row_id=r.reading_id) }}">{{ r.reading_id }}</a></td>
+          <td>{{ r.reading_date | d }}</td>
+          <td><span class="code">{{ r.meter_code }}</span></td>
+          <td class="r">{{ r.consumption_value | num }} <span class="unit">{{ r.unit }}</span></td>
+          <td class="r strong">{{ r.calculated_co2e_kg | num(1) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="muted">Nothing logged yet.</p>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head row-head">
+      <h2>Initiatives</h2>
+      <a class="btn small ghost" href="{{ url_for('entity_new', slug='initiatives', building_id=b.building_id) }}">Add</a>
+    </div>
+    {% if initiatives %}
+    <ul class="init-list">
+      {% for i in initiatives %}
+      <li>
+        <span class="pill {{ i.status | lower | replace(' ', '-') }}">{{ i.status }}</span>
+        <div>
+          <a href="{{ url_for('entity_edit', slug='initiatives', row_id=i.initiative_id) }}">{{ i.title }}</a>
+          <small>Target: cut {{ i.target_co2_reduction_kg | num }} kg
+          {% if summary %}({{ (i.target_co2_reduction_kg / summary.total_co2e_kg * 100) | num }}% of what's logged so far){% endif %}</small>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">No initiatives for this building.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_cell.html" import cell %}
+{% block title %}{{ ent.title }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div>
+    <h1>{{ ent.title }}</h1>
+    <p class="muted">{{ ent.blurb }}</p>
+  </div>
+  <a class="btn" href="{{ url_for('entity_new', slug=slug) }}">{{ 'Log a reading' if slug == 'readings' else 'Add ' ~ ent.singular }}</a>
+</header>
+
+<div class="toolbar">
+  <label class="filter">
+    <span class="sr">Filter this table</span>
+    <input type="search" placeholder="Filter {{ rows | length }} rows…" data-filter="#rows">
+  </label>
+  {% if slug == 'readings' %}<a href="{{ url_for('search') }}">Need dates or ranges? Use search</a>{% endif %}
+</div>
+
+{% if rows %}
+<div class="table-wrap panel flush">
+<table id="rows" class="sortable">
+  <thead>
+    <tr>
+      {% for key, label, fmt in ent.columns %}
+        <th class="{{ 'r' if fmt in ('int','money','kg','dec4','unit') }}" data-sort>{{ label }}</th>
+      {% endfor %}
+      <th class="actions"><span class="sr">Actions</span></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      {% for key, label, fmt in ent.columns %}{{ cell(row, key, fmt, slug) }}{% endfor %}
+      <td class="actions">
+        <a href="{{ url_for('entity_edit', slug=slug, row_id=row[ent.pk]) }}">Edit</a>
+        <a href="{{ url_for('entity_delete', slug=slug, row_id=row[ent.pk]) }}" class="danger">Delete</a>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="no-match" hidden>Nothing in this table matches that filter.</p>
+</div>
+{% else %}
+<div class="panel empty-state">
+  <p>No {{ ent.title | lower }} yet.</p>
+  <a class="btn" href="{{ url_for('entity_new', slug=slug) }}">Add the first {{ ent.singular }}</a>
+</div>
+{% endif %}
+{% endblock %}
